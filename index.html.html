@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chemical Equation Balancer – Linear Algebra Mini Project</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f3f6fb;--card:#fff;--tx:#16233a;--mut:#5b6b85;--ac:#2563eb;--ok:#0f9d58;--bad:#d93025;--bd:#dde5f2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1524;--card:#16203a;--tx:#e6ecfa;--mut:#9aaac8;--ac:#6ea0ff;--ok:#4cd08a;--bad:#ff7a70;--bd:#26335a}}
+:root[data-theme="dark"]{--bg:#0e1524;--card:#16203a;--tx:#e6ecfa;--mut:#9aaac8;--ac:#6ea0ff;--ok:#4cd08a;--bad:#ff7a70;--bd:#26335a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.w{max-width:760px;margin:0 auto;padding:20px 16px 50px}
+h1{font-size:clamp(26px,6vw,38px);line-height:1.15;margin:26px 0 8px}h1 span{color:var(--ac)}
+h2{font-size:19px;margin:0 0 8px}.m{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin:16px 0}
+input[type=text]{width:100%;box-sizing:border-box;padding:12px;font-size:18px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer;font-size:16px}
+.ex button{background:var(--bg);color:var(--tx);border:1px solid var(--bd);font-weight:400;font-size:13px;padding:5px 10px;margin:4px 4px 0 0}
+.big{font-size:clamp(20px,4.5vw,28px);font-weight:700;margin:6px 0;overflow-x:auto}
+.big .c{color:var(--ac)}
+table{border-collapse:collapse;margin:8px 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+td,th{border:1px solid var(--bd);padding:4px 10px;text-align:center}th{background:var(--bg)}
+.sc{overflow-x:auto}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+.note{border-left:4px solid var(--ac);padding:6px 12px;background:var(--bg);border-radius:6px;margin:10px 0;font-size:15px}
+footer{text-align:center;color:var(--mut);font-size:13px;margin-top:26px}
+</style></head><body><div class="w">
+<p class="m" style="margin-top:18px">Linear Algebra Mini Project · Kairav Singhal (E049, LA-1)</p>
+<h1>Chemical Equation <span>Balancer</span></h1>
+<p class="m">Balancing an equation is secretly a linear algebra problem: <b>Ax = 0</b>. This tool builds the matrix, solves it with Gauss-Jordan elimination (Exp 2) and shows every step.</p>
+
+<div class="card">
+<h2>Type an unbalanced equation</h2>
+<input id="eq" type="text" value="Fe + O2 -> Fe2O3" spellcheck="false" autocomplete="off">
+<p class="m" style="font-size:13px;margin:6px 0">Use -> between sides, + between compounds, and brackets like Al2(SO4)3. Case matters (Co ≠ CO).</p>
+<button id="go">Balance it</button>
+<div class="ex" id="ex"></div>
+</div>
+
+<div id="out"></div>
+
+<div class="card"><h2>How it works (4 steps)</h2>
+<p>1. Each element gives one equation (atoms on left = atoms on right).<br>
+2. Write them as a matrix A: columns are compounds, product columns get a minus sign.<br>
+3. Row-reduce A with Gauss-Jordan elimination (with exact fractions).<br>
+4. The null space solution gives the smallest whole-number coefficients. A has a non-zero solution only because rank(A) &lt; number of compounds (Exp 5).</p></div>
+<footer>Linear Algebra · DJSCE · all calculations run live in your browser</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+const fr=(n,d=1)=>{if(d<0){n=-n;d=-d}const g=gcd(n,d)||1;return[n/g,d/g]};
+const mul=(a,b)=>fr(a[0]*b[0],a[1]*b[1]),div=(a,b)=>fr(a[0]*b[1],a[1]*b[0]),sub=(a,b)=>fr(a[0]*b[1]-b[0]*a[1],a[1]*b[1]);
+const fs=a=>a[1]===1?String(a[0]):a[0]+'/'+a[1];
+function parse(s){let i=0;const num=()=>{let t='';while(i<s.length&&/\d/.test(s[i]))t+=s[i++];return t?+t:1};
+ function grp(){const m={};while(i<s.length){const ch=s[i];
+  if(ch==='('||ch==='['){i++;const g=grp(),n=num();for(const k in g)m[k]=(m[k]||0)+g[k]*n}
+  else if(ch===')'||ch===']'){i++;return m}
+  else if(/[A-Z]/.test(ch)){let e=ch;i++;while(i<s.length&&/[a-z]/.test(s[i]))e+=s[i++];const n=num();m[e]=(m[e]||0)+n}
+  else i++}return m}
+ return grp()}
+const sub_=f=>f.replace(/(\d+)/g,'<sub>$1</sub>');
+function tbl(M,heads,rows){let h='<div class="sc"><table><tr><th></th>'+heads.map(x=>'<th>'+sub_(x)+'</th>').join('')+'</tr>';
+ M.forEach((r,i)=>{h+='<tr><th>'+(rows?rows[i]:'')+'</th>'+r.map(x=>'<td>'+fs(x)+'</td>').join('')+'</tr>'});return h+'</table></div>'}
+function balance(){
+ const raw=$('eq').value.replace(/→|=>|⟶|==|=/g,'->');const parts=raw.split('->');
+ const out=$('out');
+ if(parts.length!==2||!parts[0].trim()||!parts[1].trim()){out.innerHTML='<div class="card bad">Please enter an equation with exactly one "->", e.g. H2 + O2 -> H2O</div>';return}
+ const L=parts[0].split('+').map(s=>s.trim()).filter(Boolean),R=parts[1].split('+').map(s=>s.trim()).filter(Boolean);
+ const sp=[...L,...R],comp=sp.map(parse),els=[];
+ comp.forEach(c=>Object.keys(c).forEach(e=>{if(!els.includes(e))els.push(e)}));
+ const n=sp.length,m=els.length;
+ if(!m){out.innerHTML='<div class="card bad">No elements found. Check your formulas.</div>';return}
+ const A=els.map(e=>sp.map((_,j)=>fr((j<L.length?1:-1)*(comp[j][e]||0))));
+ const M=A.map(r=>r.slice());let r=0;const piv=[];
+ for(let c=0;c<n&&r<m;c++){let p=-1;for(let i=r;i<m;i++)if(M[i][c][0]!==0){p=i;break}if(p<0)continue;
+  [M[r],M[p]]=[M[p],M[r]];const pv=M[r][c];M[r]=M[r].map(x=>div(x,pv));
+  for(let i=0;i<m;i++)if(i!==r&&M[i][c][0]!==0){const f=M[i][c];M[i]=M[i].map((x,j)=>sub(x,mul(f,M[r][j])))}
+  piv.push(c);r++}
+ const free=[...Array(n).keys()].filter(c=>!piv.includes(c));
+ let h=`<div class="card"><h2>Step 1 · Matrix A (one row per element)</h2>${tbl(A,sp,els)}<p class="m">Columns = compounds (products negative). Solve A·x = 0.</p></div>
+ <div class="card"><h2>Step 2 · After Gauss-Jordan elimination</h2>${tbl(M,sp,els)}<p>rank(A) = <b>${piv.length}</b>, compounds = <b>${n}</b>, free variables = <b>${free.length}</b></p></div>`;
+ let res;
+ if(free.length===0)res='<span class="bad">No balanced solution: rank equals the number of compounds, so only x = 0 satisfies Ax = 0. Check the formulas.</span>';
+ else if(free.length>1)res='<span class="bad">This equation has more than one independent solution (rank is too small), so it can be balanced in several different ways. Check that all compounds belong in the reaction.</span>';
+ else{const fc=free[0];let x=Array(n).fill(null);x[fc]=fr(1);piv.forEach((c,i)=>{x[c]=fr(-M[i][fc][0],M[i][fc][1])});
+  let l=1;x.forEach(v=>{l=l*v[1]/gcd(l,v[1])});let ints=x.map(v=>v[0]*(l/v[1]));
+  if(ints.some(v=>v<0))ints=ints.map(v=>-v);
+  const g=ints.reduce((a,b)=>gcd(a,b));ints=ints.map(v=>v/g);
+  if(ints.some(v=>v<=0))res='<span class="bad">Solution has zero or negative values, so this reaction cannot be balanced as written.</span>';
+  else{const side=(a,o)=>a.map((s,i)=>`<span class="c">${ints[i+o]>1?ints[i+o]:''}</span>${sub_(s)}`).join(' + ');
+   res=`<div class="big">${side(L,0)} → ${side(R,L.length)}</div>`;
+   let chk='<div class="sc"><table><tr><th>Element</th><th>Left</th><th>Right</th><th></th></tr>';
+   els.forEach(e=>{let a=0,b=0;comp.forEach((c,j)=>{const v=(c[e]||0)*ints[j];j<L.length?a+=v:b+=v});chk+=`<tr><td>${e}</td><td>${a}</td><td>${b}</td><td class="${a===b?'ok':'bad'}">${a===b?'✔':'✘'}</td></tr>`});
+   res+=`<p>Coefficients (null-space vector, scaled to smallest whole numbers): <b>[${ints.join(', ')}]</b></p>`+chk+'</table></div>'}}
+ h+=`<div class="card"><h2>Step 3 · Balanced equation</h2>${res}</div>`;out.innerHTML=h}
+['H2 + O2 -> H2O','Fe + O2 -> Fe2O3','C3H8 + O2 -> CO2 + H2O','Al + HCl -> AlCl3 + H2','Al2(SO4)3 + Ca(OH)2 -> Al(OH)3 + CaSO4','KMnO4 + HCl -> KCl + MnCl2 + Cl2 + H2O'].forEach(e=>{const b=document.createElement('button');b.innerHTML=sub_(e);b.onclick=()=>{$('eq').value=e;balance()};$('ex').appendChild(b)});
+$('go').onclick=balance;$('eq').onkeydown=e=>{if(e.key==='Enter')balance()};balance();
+</script></body></html>
